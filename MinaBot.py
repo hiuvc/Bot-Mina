@@ -14,7 +14,7 @@ from keep_alive import keep_alive  # chắc chắn keep_alive.py cùng thư mụ
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
 API_URL = "https://fruitsstockapi.onrender.com/fruitstock"
-CHANNEL_ID = 123456789012345678  # thay bằng ID kênh của bạn
+CHANNEL_ID = 1422089709701693452 # thay bằng ID kênh của bạn
 
 # ================= INTENTS =================
 intents = discord.Intents.default()
