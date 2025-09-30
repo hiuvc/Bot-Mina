@@ -1,20 +1,20 @@
-# main.py
-# Patch tạm bỏ audioop (Python 3.13)
+# MinaBot.py
+# Patch bỏ audioop cho Python 3.13
 import sys, types
 if "audioop" not in sys.modules:
     sys.modules["audioop"] = types.ModuleType("audioop")
 
+import os
 import discord
 from discord.ext import commands, tasks
-import aiohttp
-import os
-from keep_alive import keep_alive
 from datetime import datetime
+import aiohttp
+from keep_alive import keep_alive  # chắc chắn keep_alive.py cùng thư mục
 
 # ================= CONFIG =================
-TOKEN = os.getenv("DISCORD_TOKEN")  # lấy token từ Environment Variable
+TOKEN = os.getenv("DISCORD_TOKEN")
 API_URL = "https://fruitsstockapi.onrender.com/fruitstock"
-CHANNEL_ID = 1422089709701693452  # thay bằng ID kênh Discord của bạn
+CHANNEL_ID = 123456789012345678  # thay bằng ID kênh của bạn
 
 # ================= INTENTS =================
 intents = discord.Intents.default()
@@ -22,7 +22,7 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ================= STORAGE =================
-stock_messages = {}
+stock_messages = {}  # lưu message ID per channel
 last_snapshot = {}
 
 # ================= FRUIT → EMOJI =================
@@ -70,14 +70,15 @@ FRUIT_EMOJI = {
     "Dragon-Dragon": "<:Dragon_fruit:1422454878202232943>",
 }
 
-
 def get_emoji(name: str) -> str:
     return FRUIT_EMOJI.get(name, "🍎")
 
-# ================= FORMAT =================
+# ================= SNAPSHOT =================
 def make_snapshot(data):
+    """Tạo snapshot chỉ từ normalStock & mirageStock"""
     snapshot = {}
-    for section, fruits in data.items():
+    for section in ["normalStock", "mirageStock"]:
+        fruits = data.get(section, [])
         snapshot[section] = {f['name']: f['price'] for f in fruits}
     return snapshot
 
@@ -86,21 +87,21 @@ def compare_snapshot(old, new):
     for section in new:
         old_fruits = old.get(section, {})
         new_fruits = new.get(section, {})
-
         for fruit in new_fruits:
             if fruit not in old_fruits:
                 logs.append(f"[{section}] ➕ {fruit} xuất hiện với giá {new_fruits[fruit]:,}")
             elif old_fruits[fruit] != new_fruits[fruit]:
                 logs.append(f"[{section}] 🔄 {fruit} đổi giá {old_fruits[fruit]:,} → {new_fruits[fruit]:,}")
-
         for fruit in old_fruits:
             if fruit not in new_fruits:
                 logs.append(f"[{section}] ❌ {fruit} biến mất")
     return logs
 
+# ================= FORMAT EMBED =================
 def format_embed(data):
-    embed = discord.Embed(title="📦 Fruit Stock Update", color=0x00ff99)
-    for section, fruits in data.items():
+    embed = discord.Embed(title="📦 Blox Fruits Stock", color=0x00ff99)
+    for section in ["normalStock", "mirageStock"]:
+        fruits = data.get(section, [])
         lines = []
         for f in fruits:
             emoji = get_emoji(f['name'])
@@ -109,7 +110,7 @@ def format_embed(data):
     embed.set_footer(text=f"⏰ Last update: {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
     return embed
 
-# ================= FETCH =================
+# ================= FETCH API =================
 async def fetch_stock():
     try:
         async with aiohttp.ClientSession() as session:
@@ -123,58 +124,80 @@ async def fetch_stock():
         print(f"⚠️ Exception khi fetch API: {e}")
         return None
 
-# ================= LOOP TASK =================
+# ================= TASK AUTO UPDATE =================
 @tasks.loop(seconds=60)
 async def auto_update_stock():
     global last_snapshot
+    try:
+        data = await fetch_stock()
+        if not data:
+            return
 
-    data = await fetch_stock()
-    if not data:
-        return
+        channel = bot.get_channel(CHANNEL_ID)
+        if not channel:
+            print("⚠️ Không tìm thấy kênh Discord!")
+            return
 
-    channel = bot.get_channel(CHANNEL_ID)
-    if not channel:
-        print("⚠️ Không tìm thấy kênh Discord!")
-        return
+        new_snapshot = make_snapshot(data)
 
-    new_snapshot = make_snapshot(data)
-    if not last_snapshot:
-        last_snapshot = new_snapshot
-        embed = format_embed(data)
-        msg = await channel.send(embed=embed)
-        stock_messages[channel.id] = msg.id
-        print("✅ Gửi embed stock ban đầu")
-        return
-
-    if new_snapshot != last_snapshot:
-        logs = compare_snapshot(last_snapshot, new_snapshot)
-        if logs:
-            print("\n".join(logs))
-
-        embed = format_embed(data)
-        try:
-            msg_id = stock_messages.get(channel.id)
-            if msg_id:
-                msg = await channel.fetch_message(msg_id)
-                await msg.edit(embed=embed)
-                print("✏️ Đã edit embed với stock mới")
-            else:
-                msg = await channel.send(embed=embed)
-                stock_messages[channel.id] = msg.id
-                print("🆕 Gửi embed mới vì không tìm thấy message cũ")
-        except Exception as e:
-            print(f"⚠️ Lỗi khi edit message: {e}")
+        # Lần đầu gửi embed
+        if not last_snapshot:
+            last_snapshot = new_snapshot
+            embed = format_embed(data)
             msg = await channel.send(embed=embed)
             stock_messages[channel.id] = msg.id
+            print("✅ Gửi embed stock ban đầu")
+            return
 
-        last_snapshot = new_snapshot
+        # Nếu có thay đổi
+        if new_snapshot != last_snapshot:
+            logs = compare_snapshot(last_snapshot, new_snapshot)
+            if logs:
+                print("\n".join(logs))
 
-# ================= START =================
+            embed = format_embed(data)
+            try:
+                msg_id = stock_messages.get(channel.id)
+                if msg_id:
+                    msg = await channel.fetch_message(msg_id)
+                    await msg.edit(embed=embed)
+                    print("✏️ Đã edit embed với stock mới")
+                else:
+                    msg = await channel.send(embed=embed)
+                    stock_messages[channel.id] = msg.id
+                    print("🆕 Gửi embed mới vì không tìm thấy message cũ")
+            except Exception as e:
+                print(f"⚠️ Lỗi khi edit message: {e}")
+                msg = await channel.send(embed=embed)
+                stock_messages[channel.id] = msg.id
+
+            last_snapshot = new_snapshot
+
+    except Exception as e:
+        print(f"⚠️ Lỗi trong auto_update_stock: {e}")
+
+# ================= COMMAND !stock =================
+@bot.command()
+async def stock(ctx):
+    try:
+        data = await fetch_stock()
+        if not data:
+            await ctx.send("⚠️ Không lấy được dữ liệu stock")
+            return
+        embed = format_embed(data)
+        msg = await ctx.send(embed=embed)
+        stock_messages[ctx.channel.id] = msg.id
+        last_snapshot[ctx.channel.id] = make_snapshot(data)
+    except Exception as e:
+        await ctx.send(f"⚠️ Lỗi khi chạy lệnh !stock: {e}")
+
+# ================= BOT READY =================
 @bot.event
 async def on_ready():
     print(f"🤖 Bot đã online: {bot.user}")
     auto_update_stock.start()
 
+# ================= KEEP ALIVE =================
 if __name__ == "__main__":
-    keep_alive()
+    keep_alive()  # giữ bot 24/7
     bot.run(TOKEN)
