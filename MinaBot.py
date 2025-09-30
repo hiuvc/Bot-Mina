@@ -103,13 +103,13 @@ STOCK_NAME = {
     "mirageStock": "🏝️ Mirage Stock 🏝️"
 }
 def format_embed(data):
-    embed = discord.Embed(title="📦 Blox Fruits Stock", color=0x00ff99)
+    embed = discord.Embed(title=" Blox Fruits Stock ", color=0x00ff99)
     for section in ["normalStock", "mirageStock"]:
         fruits = data.get(section, [])
         lines = []
         for f in fruits:
             emoji = get_emoji(f['name'])
-            lines.append(f"{emoji} **{f['name']}** — 💵 {f['price']:,}")
+            lines.append(f"{emoji} **{f['name']}**  → 💰 {f['price']:,} Beli")
         display_name = STOCK_NAME.get(section, section)
         embed.add_field(name=display_name, value="\n".join(lines) or "Không có dữ liệu", inline=False)
     embed.set_footer(text=f"⏰ Last update: {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
