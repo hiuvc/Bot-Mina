@@ -1,5 +1,4 @@
 # MinaBot.py
-# Patch bỏ audioop cho Python 3.13
 import sys, types
 if "audioop" not in sys.modules:
     sys.modules["audioop"] = types.ModuleType("audioop")
@@ -9,12 +8,12 @@ import discord
 from discord.ext import commands, tasks
 from datetime import datetime
 import aiohttp
-from keep_alive import keep_alive  # chắc chắn keep_alive.py cùng thư mục
+from keep_alive import keep_alive 
 
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
 API_URL = "https://fruitsstockapi.onrender.com/fruitstock"
-CHANNEL_ID = 1422089709701693452 # thay bằng ID kênh của bạn
+CHANNEL_ID = 1422089709701693452
 
 # ================= INTENTS =================
 intents = discord.Intents.default()
@@ -102,18 +101,23 @@ STOCK_NAME = {
     "normalStock": "🛒 Normal Stock 🛒",
     "mirageStock": "🏝️ Mirage Stock 🏝️"
 }
+IGNORE_FRUITS = ["Rocket-Rocket", "Spin-Spin"]
+
 def format_embed(data):
     embed = discord.Embed(title=" Blox Fruits Stock ", color=0x00ff99)
     for section in ["normalStock", "mirageStock"]:
         fruits = data.get(section, [])
         lines = []
         for f in fruits:
+            if f['name'] in IGNORE_FRUITS:
+                continue  # bỏ qua fruit cố định
             emoji = get_emoji(f['name'])
-            lines.append(f"{emoji} **{f['name']}**  → 💰 {f['price']:,} Beli")
+            lines.append(f"{emoji} **{f['name']}** — 💰 {f['price']:,} Beli")
         display_name = STOCK_NAME.get(section, section)
         embed.add_field(name=display_name, value="\n".join(lines) or "Không có dữ liệu", inline=False)
     embed.set_footer(text=f"⏰ Last update: {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
     return embed
+
 
 # ================= FETCH API =================
 async def fetch_stock():
