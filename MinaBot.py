@@ -1,13 +1,20 @@
+# main.py
+# Patch tạm bỏ audioop (Python 3.13)
+import sys, types
+if "audioop" not in sys.modules:
+    sys.modules["audioop"] = types.ModuleType("audioop")
+
 import discord
 from discord.ext import commands, tasks
 import aiohttp
 import os
 from keep_alive import keep_alive
+from datetime import datetime
 
 # ================= CONFIG =================
-TOKEN = os.getenv("DISCORD_TOKEN")  # Lấy token từ Environment Variable
+TOKEN = os.getenv("DISCORD_TOKEN")  # lấy token từ Environment Variable
 API_URL = "https://fruitsstockapi.onrender.com/fruitstock"
-CHANNEL_ID = 123456789012345678  # Thay bằng ID kênh Discord bạn muốn gửi
+CHANNEL_ID = 123456789012345678  # thay bằng ID kênh Discord của bạn
 
 # ================= INTENTS =================
 intents = discord.Intents.default()
@@ -24,7 +31,7 @@ FRUIT_EMOJI = {
     "Spin-Spin": "<:Spin_fruit:1422212836796534804>",
     "Blade-Blade": "<:Blade_fruit:1422212358297882715>",
     "Sand-Sand": "<:Sand_fruit:1422212111685124208>",
-    # thêm fruit khác ở đây
+    # thêm fruit khác nếu muốn
 }
 
 def get_emoji(name: str) -> str:
@@ -32,27 +39,23 @@ def get_emoji(name: str) -> str:
 
 # ================= FORMAT =================
 def make_snapshot(data):
-    """Tạo snapshot đơn giản từ dữ liệu API"""
     snapshot = {}
     for section, fruits in data.items():
         snapshot[section] = {f['name']: f['price'] for f in fruits}
     return snapshot
 
 def compare_snapshot(old, new):
-    """So sánh 2 snapshot → log thay đổi"""
     logs = []
     for section in new:
         old_fruits = old.get(section, {})
         new_fruits = new.get(section, {})
 
-        # Kiểm tra fruit mới
         for fruit in new_fruits:
             if fruit not in old_fruits:
                 logs.append(f"[{section}] ➕ {fruit} xuất hiện với giá {new_fruits[fruit]:,}")
             elif old_fruits[fruit] != new_fruits[fruit]:
                 logs.append(f"[{section}] 🔄 {fruit} đổi giá {old_fruits[fruit]:,} → {new_fruits[fruit]:,}")
 
-        # Kiểm tra fruit bị xoá
         for fruit in old_fruits:
             if fruit not in new_fruits:
                 logs.append(f"[{section}] ❌ {fruit} biến mất")
@@ -66,6 +69,7 @@ def format_embed(data):
             emoji = get_emoji(f['name'])
             lines.append(f"{emoji} **{f['name']}** — 💵 {f['price']:,}")
         embed.add_field(name=f"📂 {section}", value="\n".join(lines) or "Không có dữ liệu", inline=False)
+    embed.set_footer(text=f"⏰ Last update: {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
     return embed
 
 # ================= FETCH =================
@@ -135,5 +139,5 @@ async def on_ready():
     auto_update_stock.start()
 
 if __name__ == "__main__":
-    keep_alive()   # giữ cho bot luôn chạy (Repl.it / Render free)
+    keep_alive()
     bot.run(TOKEN)
