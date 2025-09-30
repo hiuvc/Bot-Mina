@@ -112,7 +112,7 @@ def format_embed(data):
             if f['name'] in IGNORE_FRUITS:
                 continue  # bỏ qua fruit cố định
             emoji = get_emoji(f['name'])
-            lines.append(f"{emoji} **{f['name']}** — 💰 {f['price']:,} Beli")
+            lines.append(f"{emoji} **{f['name']}** → 💰 {f['price']:,} Beli")
         display_name = STOCK_NAME.get(section, section)
         embed.add_field(name=display_name, value="\n".join(lines) or "Không có dữ liệu", inline=False)
     embed.set_footer(text=f"⏰ Last update: {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
