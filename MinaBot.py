@@ -98,6 +98,10 @@ def compare_snapshot(old, new):
     return logs
 
 # ================= FORMAT EMBED =================
+STOCK_NAME = {
+    "normalStock": "🛒 Normal Stock 🛒",
+    "mirageStock": "🏝️ Mirage Stock 🏝️"
+}
 def format_embed(data):
     embed = discord.Embed(title="📦 Blox Fruits Stock", color=0x00ff99)
     for section in ["normalStock", "mirageStock"]:
@@ -106,7 +110,8 @@ def format_embed(data):
         for f in fruits:
             emoji = get_emoji(f['name'])
             lines.append(f"{emoji} **{f['name']}** — 💵 {f['price']:,}")
-        embed.add_field(name=f"📂 {section}", value="\n".join(lines) or "Không có dữ liệu", inline=False)
+        display_name = STOCK_NAME.get(section, section)
+        embed.add_field(name=display_name, value="\n".join(lines) or "Không có dữ liệu", inline=False)
     embed.set_footer(text=f"⏰ Last update: {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
     return embed
 
@@ -114,7 +119,7 @@ def format_embed(data):
 async def fetch_stock():
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(API_URL, timeout=20) as response:
+            async with session.get(API_URL, timeout=30) as response:
                 if response.status == 200:
                     return await response.json()
                 else:
