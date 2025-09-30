@@ -14,7 +14,7 @@ from datetime import datetime
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")  # lấy token từ Environment Variable
 API_URL = "https://fruitsstockapi.onrender.com/fruitstock"
-CHANNEL_ID = 123456789012345678  # thay bằng ID kênh Discord của bạn
+CHANNEL_ID = 1422089709701693452  # thay bằng ID kênh Discord của bạn
 
 # ================= INTENTS =================
 intents = discord.Intents.default()
@@ -27,12 +27,49 @@ last_snapshot = {}
 
 # ================= FRUIT → EMOJI =================
 FRUIT_EMOJI = {
-    "Rocket-Rocket": "<:Rocket_fruit:1422206917106733227>",
+    "Rocket-Rocket": "<:Rocket_fruit:1422206917106733227>",  
     "Spin-Spin": "<:Spin_fruit:1422212836796534804>",
     "Blade-Blade": "<:Blade_fruit:1422212358297882715>",
     "Sand-Sand": "<:Sand_fruit:1422212111685124208>",
-    # thêm fruit khác nếu muốn
+    "Ice-Ice": "<:Ice_fruit:1422215625064972401>",
+    "Eagle-Eagle": "<:Eagle_fruit:1422211868314960032>",
+    "Rubber-Rubber": "<:Rubber_fruit:1422209600433950720>",
+    "Spike-Spike": "<:Spike_fruit:1422215734305624124>",
+    "Bomb-Bomb": "<:Bomb_fruit:1422214714494025748>",
+    "Flame-Flame": "<:Flame_fruit:1422207593073606676>",
+    "Spring-Spring": "<:Spring_fruit:1422215879780728993>",
+    "Diamond-Diamond": "<:Diamond_fruit:1422210581548630026>",
+    "Smoke-Smoke": "<:Smoke_fruit:1422217080777867385>",
+    "Dark-Dark": "<:Dark_fruit:1422207695494316083>",
+    "Light-Light": "<:Light_fruit:1422208146222354484>",
+    "Ghost-Ghost": "<:Ghost_fruit:1422208434110992466>",
+    "Magma-Magma": "<:Magma_fruit:1422207498852499596>",
+    "Quake-Quake": "<:Quake_fruit:1422209144504717456>",
+    "Buddha-Buddha": "<:Buddha_fruit:1422210777385013298>",
+    "Love-Love": "<:Love_Fruit:1422207155125354536>",
+    "Creation-Creation": "<:Creation_fruit:1422212923954167908>",
+    "Spider-Spider": "<:Spider_fruit:1422209019858255943>",
+    "Sound-Sound": "<:Sound_fruit:1422212666386157648>",
+    "Phoenix-Phoenix": "<:Phoenix_fruit:1422208556995842210>",
+    "Lightning-Lightning": "<:Rumble_fruit:1422210336509136906>",
+    "Rumble-Rumble": "<:Rumble_fruit:1422210336509136906>",
+    "Pain-Pain": "<:Pain_fruit:1422209692473757869>",
+    "Blizzard-Blizzard": "<:Blizard_fruit:1422207837517385818>",
+    "Gravity-Gravity": "<:Gravity_fruit:1422211766179332186>",
+    "Mammoth-Mammoth": "<:Mammoth_fruit:1422210462136799262>",
+    "T-Rex-T-Rex": "<:Trex_fruit:1422212443311964212>",
+    "Dough-Dough": "<:Douth_fruit:1422208017230856243>",
+    "Shadow-Shadow": "<:Shadow_fruit:1422210692026470502>",
+    "Venom-Venom": "<:Venom_fruit:1422208847858241596>",
+    "Control-Control": "<:Control_fruit:1422209407001038929>",
+    "Gas-Gas": "<:Gas_fruit:1422213901621133322>",
+    "Spirit-Spirit": "<:Spirit_fruit:1422208664097259640>",
+    "Leopard-Leopard": "<:Leopard_fruit:1422208240288010373>",
+    "Yeti-Yeti": "<:Yeti_fruit:1422211990046117892>",
+    "Kitsune-Kitsune": "<:Rocket_fruit:1422213078610743449>",
+    "Dragon-Dragon": "<:Dragon_fruit:1422454878202232943>",
 }
+
 
 def get_emoji(name: str) -> str:
     return FRUIT_EMOJI.get(name, "🍎")
