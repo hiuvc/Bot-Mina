@@ -1,4 +1,5 @@
 # MinaBot.py
+# Patch bỏ audioop cho Python 3.13
 import sys, types
 if "audioop" not in sys.modules:
     sys.modules["audioop"] = types.ModuleType("audioop")
@@ -6,14 +7,14 @@ if "audioop" not in sys.modules:
 import os
 import discord
 from discord.ext import commands, tasks
-from datetime import datetime
+from datetime import datetime, timedelta
 import aiohttp
-from keep_alive import keep_alive 
+from keep_alive import keep_alive  # chắc chắn keep_alive.py cùng thư mục
 
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
 API_URL = "https://fruitsstockapi.onrender.com/fruitstock"
-CHANNEL_ID = 1422089709701693452
+CHANNEL_ID = 1422089709701693452  # thay bằng ID kênh của bạn
 
 # ================= INTENTS =================
 intents = discord.Intents.default()
@@ -70,39 +71,72 @@ FRUIT_EMOJI = {
     "Portal-Portal": "<:Portal_fruit:1422210170401849344>",
 }
 
+IGNORE_FRUITS = ["Rocket-Rocket", "Spin-Spin"]
+
 def get_emoji(name: str) -> str:
     return FRUIT_EMOJI.get(name, "🍎")
 
 # ================= SNAPSHOT =================
 def make_snapshot(data):
-    """Tạo snapshot chỉ từ normalStock & mirageStock"""
     snapshot = {}
     for section in ["normalStock", "mirageStock"]:
         fruits = data.get(section, [])
         snapshot[section] = {f['name']: f['price'] for f in fruits}
     return snapshot
 
+# ================= COOL DOWN =================
+last_change_time = {
+    "normalStock": None,
+    "mirageStock": None
+}
+
+COOLDOWN = {
+    "normalStock": timedelta(hours=4),
+    "mirageStock": timedelta(hours=2)
+}
+
+def get_cooldown_remaining(section):
+    last_time = last_change_time.get(section)
+    if not last_time:
+        return "Chưa có thay đổi"
+    remaining = last_time + COOLDOWN[section] - datetime.now()
+    if remaining.total_seconds() <= 0:
+        return "Đã reset"
+    hours, remainder = divmod(int(remaining.total_seconds()), 3600)
+    minutes, _ = divmod(remainder, 60)
+    return f"{hours}h {minutes}m"
+
 def compare_snapshot(old, new):
     logs = []
+    changed_sections = []
     for section in new:
         old_fruits = old.get(section, {})
         new_fruits = new.get(section, {})
+        section_changed = False
+
         for fruit in new_fruits:
             if fruit not in old_fruits:
                 logs.append(f"[{section}] ➕ {fruit} xuất hiện với giá {new_fruits[fruit]:,}")
+                section_changed = True
             elif old_fruits[fruit] != new_fruits[fruit]:
                 logs.append(f"[{section}] 🔄 {fruit} đổi giá {old_fruits[fruit]:,} → {new_fruits[fruit]:,}")
+                section_changed = True
+
         for fruit in old_fruits:
             if fruit not in new_fruits:
                 logs.append(f"[{section}] ❌ {fruit} biến mất")
-    return logs
+                section_changed = True
+
+        if section_changed:
+            changed_sections.append(section)
+
+    return logs, changed_sections
 
 # ================= FORMAT EMBED =================
 STOCK_NAME = {
     "normalStock": "🛒 Normal Stock 🛒",
     "mirageStock": "🏝️ Mirage Stock 🏝️"
 }
-IGNORE_FRUITS = ["Rocket-Rocket", "Spin-Spin"]
 
 def format_embed(data):
     embed = discord.Embed(title=" Blox Fruits Stock ", color=0x00ff99)
@@ -111,14 +145,19 @@ def format_embed(data):
         lines = []
         for f in fruits:
             if f['name'] in IGNORE_FRUITS:
-                continue  # bỏ qua fruit cố định
+                continue
             emoji = get_emoji(f['name'])
             lines.append(f"{emoji} **{f['name']}** → 💰 {f['price']:,} Beli")
-        display_name = STOCK_NAME.get(section, section)
-        embed.add_field(name=display_name, value="\n".join(lines) or "Không có dữ liệu", inline=False)
-    embed.set_footer(text=f"⏰ Last update: {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
-    return embed
 
+        # Thêm cooldown dưới cùng
+        cooldown_text = get_cooldown_remaining(section)
+        lines.append(f"\n⏱️ New fruits in: {cooldown_text}")
+
+        display_name = STOCK_NAME.get(section, section)
+        embed.add_field(name=display_name,
+                        value="\n".join(lines) or "Không có dữ liệu",
+                        inline=False)
+    return embed
 
 # ================= FETCH API =================
 async def fetch_stock():
@@ -135,7 +174,7 @@ async def fetch_stock():
         return None
 
 # ================= TASK AUTO UPDATE =================
-@tasks.loop(seconds=60)
+@tasks.loop(seconds=10)
 async def auto_update_stock():
     global last_snapshot
     try:
@@ -161,9 +200,13 @@ async def auto_update_stock():
 
         # Nếu có thay đổi
         if new_snapshot != last_snapshot:
-            logs = compare_snapshot(last_snapshot, new_snapshot)
+            logs, changed_sections = compare_snapshot(last_snapshot, new_snapshot)
             if logs:
                 print("\n".join(logs))
+
+            # Cập nhật thời gian thay đổi
+            for section in changed_sections:
+                last_change_time[section] = datetime.now()
 
             embed = format_embed(data)
             try:
