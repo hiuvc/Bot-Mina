@@ -67,6 +67,7 @@ FRUIT_EMOJI = {
     "Yeti-Yeti": "<:Yeti_fruit:1422211990046117892>",
     "Kitsune-Kitsune": "<:Rocket_fruit:1422213078610743449>",
     "Dragon-Dragon": "<:Dragon_fruit:1422454878202232943>",
+    "Portal-Portal": "<:Portal_fruit:1422210170401849344>",
 }
 
 def get_emoji(name: str) -> str:
