@@ -106,32 +106,6 @@ def get_cooldown_remaining(section):
     minutes, _ = divmod(remainder, 60)
     return f"{hours}h {minutes}m"
 
-def compare_snapshot(old, new):
-    logs = []
-    changed_sections = []
-    for section in new:
-        old_fruits = old.get(section, {})
-        new_fruits = new.get(section, {})
-        section_changed = False
-
-        for fruit in new_fruits:
-            if fruit not in old_fruits:
-                logs.append(f"[{section}] ➕ {fruit} xuất hiện với giá {new_fruits[fruit]:,}")
-                section_changed = True
-            elif old_fruits[fruit] != new_fruits[fruit]:
-                logs.append(f"[{section}] 🔄 {fruit} đổi giá {old_fruits[fruit]:,} → {new_fruits[fruit]:,}")
-                section_changed = True
-
-        for fruit in old_fruits:
-            if fruit not in new_fruits:
-                logs.append(f"[{section}] ❌ {fruit} biến mất")
-                section_changed = True
-
-        if section_changed:
-            changed_sections.append(section)
-
-    return logs, changed_sections
-
 # ================= FORMAT EMBED =================
 STOCK_NAME = {
     "normalStock": "🛒 Normal Stock 🛒",
@@ -148,11 +122,8 @@ def format_embed(data):
                 continue
             emoji = get_emoji(f['name'])
             lines.append(f"{emoji} **{f['name']}** → 💰 {f['price']:,} Beli")
-
-        # Thêm cooldown dưới cùng
-        cooldown_text = get_cooldown_remaining(section)
-        lines.append(f"\n⏱️ New fruits in: {cooldown_text}")
-
+        # Thêm cooldown
+        lines.append(f"\n⏱️ New fruits in: {get_cooldown_remaining(section)}")
         display_name = STOCK_NAME.get(section, section)
         embed.add_field(name=display_name,
                         value="\n".join(lines) or "Không có dữ liệu",
@@ -181,15 +152,11 @@ async def auto_update_stock():
         data = await fetch_stock()
         if not data:
             return
-
         channel = bot.get_channel(CHANNEL_ID)
         if not channel:
             print("⚠️ Không tìm thấy kênh Discord!")
             return
-
         new_snapshot = make_snapshot(data)
-
-        # Lần đầu gửi embed
         if not last_snapshot:
             last_snapshot = new_snapshot
             embed = format_embed(data)
@@ -197,17 +164,12 @@ async def auto_update_stock():
             stock_messages[channel.id] = msg.id
             print("✅ Gửi embed stock ban đầu")
             return
-
-        # Nếu có thay đổi
         if new_snapshot != last_snapshot:
-            logs, changed_sections = compare_snapshot(last_snapshot, new_snapshot)
-            if logs:
-                print("\n".join(logs))
-
-            # Cập nhật thời gian thay đổi
-            for section in changed_sections:
-                last_change_time[section] = datetime.now()
-
+            for section in ["normalStock", "mirageStock"]:
+                old_fruits = last_snapshot.get(section, {})
+                new_fruits = new_snapshot.get(section, {})
+                if old_fruits != new_fruits:
+                    last_change_time[section] = datetime.now()
             embed = format_embed(data)
             try:
                 msg_id = stock_messages.get(channel.id)
@@ -223,11 +185,30 @@ async def auto_update_stock():
                 print(f"⚠️ Lỗi khi edit message: {e}")
                 msg = await channel.send(embed=embed)
                 stock_messages[channel.id] = msg.id
-
             last_snapshot = new_snapshot
-
     except Exception as e:
         print(f"⚠️ Lỗi trong auto_update_stock: {e}")
+
+# ================= TASK UPDATE COUNTDOWN REALTIME =================
+@tasks.loop(minutes=1)
+async def update_cooldown_embed():
+    channel = bot.get_channel(CHANNEL_ID)
+    if not channel:
+        return
+    msg_id = stock_messages.get(channel.id)
+    if not msg_id:
+        return
+    try:
+        msg = await channel.fetch_message(msg_id)
+        embed = msg.embeds[0]
+        for i, section in enumerate(["normalStock", "mirageStock"]):
+            value_lines = embed.fields[i].value.split("\n")
+            value_lines[-1] = f"\n⏱️ New fruits in: {get_cooldown_remaining(section)}"
+            embed.set_field_at(i, name=embed.fields[i].name,
+                               value="\n".join(value_lines), inline=False)
+        await msg.edit(embed=embed)
+    except Exception as e:
+        print(f"⚠️ Lỗi update cooldown: {e}")
 
 # ================= COMMAND !stock =================
 @bot.command()
@@ -249,8 +230,9 @@ async def stock(ctx):
 async def on_ready():
     print(f"🤖 Bot đã online: {bot.user}")
     auto_update_stock.start()
+    update_cooldown_embed.start()
 
 # ================= KEEP ALIVE =================
 if __name__ == "__main__":
-    keep_alive()  # giữ bot 24/7
+    keep_alive()
     bot.run(TOKEN)
