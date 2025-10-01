@@ -123,7 +123,7 @@ def format_embed(data):
             emoji = get_emoji(f['name'])
             lines.append(f"{emoji} **{f['name']}** → 💰 {f['price']:,} Beli")
         # Thêm cooldown
-        lines.append(f"\n⏱️ New fruits in: {get_cooldown_remaining(section)}")
+        lines.append(f"⏱️ New fruits in: {get_cooldown_remaining(section)}")
         display_name = STOCK_NAME.get(section, section)
         embed.add_field(name=display_name,
                         value="\n".join(lines) or "Không có dữ liệu",
@@ -203,7 +203,7 @@ async def update_cooldown_embed():
         embed = msg.embeds[0]
         for i, section in enumerate(["normalStock", "mirageStock"]):
             value_lines = embed.fields[i].value.split("\n")
-            value_lines[-1] = f"\n⏱️ New fruits in: {get_cooldown_remaining(section)}"
+            value_lines[-1] = f"⏱️ New fruits in: {get_cooldown_remaining(section)}"
             embed.set_field_at(i, name=embed.fields[i].name,
                                value="\n".join(value_lines), inline=False)
         await msg.edit(embed=embed)
